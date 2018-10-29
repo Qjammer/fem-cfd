@@ -122,74 +122,109 @@ classdef sparsetensor
 			
 			if class(B)=="double" % Standard matrix here
 				% Check if the matrix is provided accordingly to the index
-				
-				Blogor = [];
-				inlogor = [];
-				
-				for dim=1:ndim					
-					if varargin{dim} == ':'
-						varargin{dim} = 1:self.shape(dim);
-					end
-					
-					if size(B,dim)>1
-						Blogor = [Blogor,dim];
-					end
-					
-					if length(varargin{dim})>1
-						inlogor = [inlogor,dim];
-					end
-				end
-				
-				% We use the dimensions where the size is greater than 1 to
-				% iterate
-				
-				if (length(Blogor)~=length(inlogor))
-					error ("Matrix being assigned isnt consistant with index");
-				end
-				
-				Bor = length(Blogor);
-				
-				for dim=1:Bor					
-					if size(B,Blogor(dim))~=length(varargin{inlogor(dim)})
-						error ("Matrix being assigned isnt consistant with index");
-					end
-				end
-				
-				ivector = ones(Bor,1);
-				ivector = num2cell(ivector);
-				gvector = ones(self.order,1);
-				gvector = num2cell(gvector);
-				
-				ilim = ones(Bor,1);
-				
-				for dim=1:Bor
-					ilim(dim) = size(B,Blogor(dim));
-					gvector{dim} = varargin{dim}(1);
-				end
-				
-				finished = false;
-				
-				while ~finished
-					
-					% B(vector) doesnt work...
-					self = self.writeat(B(ivector{:}),gvector{:});
-					
-					
-					% Updating index vector
-					finished = true;
-					for k=1:Bor
-						ivector{k} = ivector{k} + 1;
-						if (ivector{k} <= ilim(k))
-							finished = false;							
-							break;
-						end
-						ivector{k} = 1;
-					end					
-					for dim=1:Bor
-						gvector{inlogor(dim)} = varargin{inlogor(dim)}(ivector{Blogor(dim)});
-					end
-				end
-				
+                
+                if (isvector(B) && size(B,2)~= 1)
+                   B = B'; 
+                end
+                
+                inlogor = [];
+                
+                for dim=1:ndim					
+                    if varargin{dim} == ':'
+                        varargin{dim} = 1:self.shape(dim);
+                    end
+
+                    if length(varargin{dim})>1
+                        inlogor = [inlogor,dim];
+                    end
+                end
+                
+                Ior = length(inlogor);
+                
+                ivector = ones(Ior,1);
+                ivector = num2cell(ivector);
+                gvector = ones(self.order,1);
+                gvector = num2cell(gvector);
+
+                ilim = ones(Ior,1);
+
+                for dim=1:Ior
+                    ilim(dim) = length(varargin{inlogor(dim)});
+                    gvector{dim} = varargin{dim}(1);
+                end
+                
+                if length(B)==1 % Single value
+                    
+                    finished = false;
+
+                    while ~finished
+
+                        % B(vector) doesnt work...
+                        self = self.writeat(B,gvector{:});
+
+
+                        % Updating index vector
+                        finished = true;
+                        for k=1:Ior
+                            ivector{k} = ivector{k} + 1;
+                            if (ivector{k} <= ilim(k))
+                                finished = false;							
+                                break;
+                            end
+                            ivector{k} = 1;
+                        end					
+                        for dim=1:Ior
+                            gvector{inlogor(dim)} = varargin{inlogor(dim)}(ivector{inlogor(dim)});
+                        end
+                    end
+                    
+                else				
+                    Blogor = [];
+
+                    for dim=1:ndim
+                        if size(B,dim)>1
+                            Blogor = [Blogor,dim];
+                        end
+                    end
+
+                    % We use the dimensions where the size is greater than 1 to
+                    % iterate
+
+                    if (length(Blogor)~=length(inlogor))
+                        error ("Matrix being assigned isnt consistant with index");
+                    end
+
+                    Bor = length(Blogor);
+
+                    for dim=1:Bor					
+                        if size(B,Blogor(dim))~=length(varargin{inlogor(dim)})
+                            error ("Matrix being assigned isnt consistant with index");
+                        end
+                    end
+
+                    finished = false;
+
+                    while ~finished
+
+                        % B(vector) doesnt work...
+                        self = self.writeat(B(ivector{:}),gvector{:});
+
+
+                        % Updating index vector
+                        finished = true;
+                        for k=1:Bor
+                            ivector{k} = ivector{k} + 1;
+                            if (ivector{k} <= ilim(k))
+                                finished = false;							
+                                break;
+                            end
+                            ivector{k} = 1;
+                        end					
+                        for dim=1:Bor
+                            gvector{inlogor(dim)} = varargin{inlogor(dim)}(ivector{Blogor(dim)});
+                        end
+                    end
+                end
 			end
 		end
 		
@@ -250,7 +285,25 @@ classdef sparsetensor
 				
 			end
 						
-		end
+        end
+        
+        function obj = squeeze(self)
+           sqi = [];
+           
+            for dim=1:self.order
+                if self.shape(dim) == 1
+                   sqi = [sqi,dim]; 
+                end
+            end
+            
+            sqshape = self.shape(self.shape~=1);
+            sqpos = self.pos(:,sqi);
+            
+            obj = sparsetensor(sqshape);
+            obj.data = self.data;
+            obj.pos = sqpos;
+            obj.dend = self.dend;
+        end
 		
 		function in = end(self,k,n)
 			if (n ~= self.order)
@@ -258,7 +311,7 @@ classdef sparsetensor
 			end
 			
 			in = self.shape(k);
-		end
+        end
 		
 		function varargout = subsref(self,in)
 			
